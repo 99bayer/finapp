@@ -1,0 +1,505 @@
+{% extends "base.html" %}
+{% block title %}Preencher dados — {{ nome_mes }}{% endblock %}
+
+{% block header %}
+<header class="app-header">
+  <div class="header-inner">
+    <div class="header-logo">
+      <div class="header-icon">💰</div>
+      <div>
+        <div class="header-name">{{ nome_mes }}</div>
+        <div class="header-sub">Passo {{ passo }} de 5</div>
+      </div>
+    </div>
+    <a href="/dashboard" class="header-btn">Dashboard</a>
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="shell">
+
+  <!-- Progresso -->
+  <div class="wizard-progress" style="margin-top:4px">
+    {% for p in passos %}
+    <div class="wp-step {% if p.num < passo %}done{% elif p.num == passo %}active{% endif %}"></div>
+    {% endfor %}
+  </div>
+
+  <!-- Header do passo -->
+  <div class="wizard-header">
+    <div class="wizard-step-badge">
+      {{ passos[passo-1].icone }} Passo {{ passo }} de 5
+    </div>
+    <div class="wizard-title">{{ passos[passo-1].titulo }}</div>
+    <div class="wizard-sub">{{ passos[passo-1].sub }}</div>
+  </div>
+
+  <!-- ══ PASSO 1: RECEITAS ════════════════════════════════════════════════ -->
+  {% if passo == 1 %}
+  <div class="card" style="margin-bottom:0">
+    <div id="listaEntradas" class="item-list">
+      {% for e in data.entradas %}
+      <div class="item-card" data-idx="{{ loop.index0 }}">
+        <div class="item-info">
+          <div class="item-name">{{ e.desc }}</div>
+          <div class="item-sub">{{ e.tipo }} {% if e.data %}· dia {{ e.data }}{% endif %}</div>
+        </div>
+        <div class="item-val">{{ "R$ {:,.2f}".format(e.valor|float).replace(",","X").replace(".",",").replace("X",".") }}</div>
+        <button class="item-del" onclick="removerItem('entradas',{{ loop.index0 }})">✕</button>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:20px;color:var(--gr400);font-size:.85rem" id="emptyEntradas">
+        Nenhuma entrada cadastrada ainda
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="add-form">
+      <div class="add-form-title">+ Adicionar entrada</div>
+      <div class="form-group">
+        <label class="form-label">De onde veio?</label>
+        <input type="text" class="form-input" id="entDescricao" placeholder="Ex: Salário, Freelance, Vale alimentação">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Tipo</label>
+          <select class="form-select" id="entTipo">
+            <option>Salário</option><option>Adiantamento</option>
+            <option>Vale Alimentação</option><option>Renda Extra</option>
+            <option>Freelance</option><option>Dividendos</option><option>Outros</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Dia</label>
+          <input type="number" class="form-input" id="entDia" placeholder="Ex: 5" min="1" max="31">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label class="form-label">Valor (R$)</label>
+        <div class="input-prefix">
+          <input type="number" class="form-input" id="entValor" placeholder="0,00" step="0.01" min="0">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="adicionarEntrada()" style="margin-top:4px">
+        + Adicionar
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ══ PASSO 2: SAÍDAS FIXAS ════════════════════════════════════════════ -->
+  {% if passo == 2 %}
+  <div class="card" style="margin-bottom:0">
+    <div id="listaFixas" class="item-list">
+      {% for f in data.fixas %}
+      <div class="item-card" data-idx="{{ loop.index0 }}">
+        <div class="item-info">
+          <div class="item-name">{{ f.desc }}</div>
+          <div class="item-sub">{{ f.cat }} {% if f.vencto %}· vence dia {{ f.vencto }}{% endif %}
+            {% if f.debito == 'Sim' %}<span style="background:var(--g100);color:var(--g700);padding:1px 6px;border-radius:8px;font-size:.65rem;margin-left:4px">Déb. Auto</span>{% endif %}
+          </div>
+        </div>
+        <div class="item-val">{{ "R$ {:,.2f}".format(f.valor|float).replace(",","X").replace(".",",").replace("X",".") }}</div>
+        <button class="item-del" onclick="removerItem('fixas',{{ loop.index0 }})">✕</button>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:20px;color:var(--gr400);font-size:.85rem">
+        Nenhuma saída fixa cadastrada
+      </div>
+      {% endfor %}
+    </div>
+    <div class="add-form">
+      <div class="add-form-title">+ Adicionar despesa fixa</div>
+      <div class="form-group">
+        <label class="form-label">Nome da despesa</label>
+        <input type="text" class="form-input" id="fixDesc" placeholder="Ex: Aluguel, Internet, Academia">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Categoria</label>
+          <select class="form-select" id="fixCat">
+            <option>Moradia</option><option>Financiamentos</option><option>Saúde</option>
+            <option>Transporte</option><option>Educação</option>
+            <option>Serviços/Assinaturas</option><option>Outros</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Vencimento (dia)</label>
+          <input type="number" class="form-input" id="fixVencto" placeholder="Ex: 10" min="1" max="31">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Valor (R$)</label>
+          <div class="input-prefix">
+            <input type="number" class="form-input" id="fixValor" placeholder="0,00" step="0.01" min="0">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Débito automático?</label>
+          <select class="form-select" id="fixDebito">
+            <option>Não</option><option>Sim</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="adicionarFixa()" style="margin-top:12px">
+        + Adicionar
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ══ PASSO 3: PARCELAMENTOS ═══════════════════════════════════════════ -->
+  {% if passo == 3 %}
+  <div class="card" style="margin-bottom:0">
+    <div id="listaParcelas" class="item-list">
+      {% for p in data.parcelas %}
+      <div class="item-card" data-idx="{{ loop.index0 }}">
+        <div class="item-info">
+          <div class="item-name">{{ p.desc }}</div>
+          <div class="item-sub">{{ p.cat }} · {{ p.parc_atual }}/{{ p.total_parc }} parcelas · faltam {{ p.faltam }}</div>
+          <div class="parc-prog">
+            <div class="parc-prog-fill {% if (p.parc_atual|float / p.total_parc|float) < 0.5 %}low{% endif %}"
+                 style="width:{{ (p.parc_atual|float / p.total_parc|float * 100)|round }}%"></div>
+          </div>
+        </div>
+        <div class="item-val">{{ "R$ {:,.2f}".format(p.valor_parcela|float).replace(",","X").replace(".",",").replace("X",".") }}</div>
+        <button class="item-del" onclick="removerItem('parcelas',{{ loop.index0 }})">✕</button>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:20px;color:var(--gr400);font-size:.85rem">
+        Nenhum parcelamento cadastrado
+      </div>
+      {% endfor %}
+    </div>
+    <div class="add-form">
+      <div class="add-form-title">+ Adicionar parcelamento</div>
+      <div class="form-group">
+        <label class="form-label">O que é?</label>
+        <input type="text" class="form-input" id="parcDesc" placeholder="Ex: Cartão notebook, Empréstimo">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Categoria</label>
+          <select class="form-select" id="parcCat">
+            <option>Eletrônicos</option><option>Eletrodomésticos</option>
+            <option>Veículo</option><option>Educação</option>
+            <option>Seguros</option><option>Crédito Pessoal</option><option>Outros</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Valor da parcela (R$)</label>
+          <div class="input-prefix">
+            <input type="number" class="form-input" id="parcValor" placeholder="0,00" step="0.01" min="0">
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Total de parcelas</label>
+          <input type="number" class="form-input" id="parcTotal" placeholder="Ex: 12" min="1">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Parcela atual (nº)</label>
+          <input type="number" class="form-input" id="parcAtual" placeholder="Ex: 3" min="1">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="adicionarParcela()" style="margin-top:12px">
+        + Adicionar
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ══ PASSO 4: GASTOS VARIÁVEIS ════════════════════════════════════════ -->
+  {% if passo == 4 %}
+  <div class="card" style="margin-bottom:0">
+    <div id="listaVariaveis" class="item-list">
+      {% for v in data.variaveis %}
+      <div class="item-card" data-idx="{{ loop.index0 }}">
+        <div class="item-info">
+          <div class="item-name">{{ v.desc }}</div>
+          <div class="item-sub">{{ v.cat }} {% if v.data %}· {{ v.data }}{% endif %}</div>
+        </div>
+        <div class="item-val">{{ "R$ {:,.2f}".format(v.valor|float).replace(",","X").replace(".",",").replace("X",".") }}</div>
+        <button class="item-del" onclick="removerItem('variaveis',{{ loop.index0 }})">✕</button>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:20px;color:var(--gr400);font-size:.85rem">
+        Nenhum gasto variável registrado
+      </div>
+      {% endfor %}
+    </div>
+    <div class="add-form">
+      <div class="add-form-title">+ Registrar gasto</div>
+      <div class="form-group">
+        <label class="form-label">Onde gastou?</label>
+        <input type="text" class="form-input" id="varDesc" placeholder="Ex: Mercado, Farmácia, Uber">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Categoria</label>
+          <select class="form-select" id="varCat">
+            <option>Alimentação</option><option>Saúde</option><option>Transporte</option>
+            <option>Lazer</option><option>Vestuário</option><option>Presente</option>
+            <option>Manutenção</option><option>Outros</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Data</label>
+          <input type="date" class="form-input" id="varData">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label class="form-label">Valor (R$)</label>
+        <div class="input-prefix">
+          <input type="number" class="form-input" id="varValor" placeholder="0,00" step="0.01" min="0">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="adicionarVariavel()" style="margin-top:4px">
+        + Registrar
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ══ PASSO 5: INVESTIMENTOS ════════════════════════════════════════════ -->
+  {% if passo == 5 %}
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-title"><div class="ico">💼</div> Carteira atual</div>
+    <div id="listaInv" class="item-list">
+      {% for i in data.investimentos %}
+      <div class="item-card" data-idx="{{ loop.index0 }}">
+        <div class="item-info">
+          <div class="item-name">{{ i.nome }}</div>
+          <div class="item-sub">{{ i.tipo }} · {{ i.inst }}</div>
+        </div>
+        <div class="item-val">{{ "R$ {:,.2f}".format(i.atual|float).replace(",","X").replace(".",",").replace("X",".") }}</div>
+        <button class="item-del" onclick="removerInv({{ loop.index0 }})">✕</button>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:12px;color:var(--gr400);font-size:.85rem">
+        Nenhum investimento cadastrado
+      </div>
+      {% endfor %}
+    </div>
+    <div class="add-form">
+      <div class="add-form-title">+ Adicionar investimento</div>
+      <div class="form-group">
+        <label class="form-label">Nome do ativo</label>
+        <input type="text" class="form-input" id="invNome" placeholder="Ex: CDB Nubank 120%">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Tipo</label>
+          <select class="form-select" id="invTipo">
+            <option>Renda Fixa</option><option>Poupança</option>
+            <option>Tesouro Direto</option><option>Fundo</option>
+            <option>Ações</option><option>FII</option><option>Previdência</option><option>Outros</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Instituição</label>
+          <input type="text" class="form-input" id="invInst" placeholder="Ex: Nubank, Sicredi">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Valor aplicado (R$)</label>
+          <div class="input-prefix">
+            <input type="number" class="form-input" id="invAplicado" placeholder="0,00" step="0.01">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Valor atual (R$)</label>
+          <div class="input-prefix">
+            <input type="number" class="form-input" id="invAtual" placeholder="0,00" step="0.01">
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="adicionarInv()" style="margin-top:12px">
+        + Adicionar
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="ico">🎯</div> Aporte mensal planejado</div>
+    <div id="listaAportes" class="item-list">
+      {% for a in data.aportes %}
+      <div class="item-card" data-idx="{{ loop.index0 }}">
+        <div class="item-info">
+          <div class="item-name">{{ a.produto }}</div>
+          <div class="item-sub">{{ a.tipo }}</div>
+        </div>
+        <div class="item-val">{{ "R$ {:,.2f}".format(a.planejado|float).replace(",","X").replace(".",",").replace("X",".") }}</div>
+        <button class="item-del" onclick="removerAporte({{ loop.index0 }})">✕</button>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:12px;color:var(--gr400);font-size:.85rem">
+        Nenhum aporte planejado
+      </div>
+      {% endfor %}
+    </div>
+    <div class="add-form">
+      <div class="add-form-title">+ Planejar aporte</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Produto</label>
+          <input type="text" class="form-input" id="apoNome" placeholder="Ex: CDB, Tesouro">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Tipo</label>
+          <select class="form-select" id="apoTipo">
+            <option>Renda Fixa</option><option>Tesouro</option><option>Ações</option>
+            <option>Previdência</option><option>Poupança</option><option>Outros</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label class="form-label">Quanto quer investir (R$)</label>
+        <div class="input-prefix">
+          <input type="number" class="form-input" id="apoValor" placeholder="0,00" step="0.01">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="adicionarAporte()" style="margin-top:4px">
+        + Adicionar
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Navegação entre passos -->
+  <div style="display:flex;gap:10px;margin-top:16px">
+    {% if passo > 1 %}
+    <a href="/wizard/{{ passo-1 }}" class="btn btn-outline" style="flex:1">← Anterior</a>
+    {% endif %}
+    {% if passo < 5 %}
+    <button class="btn btn-primary" style="flex:2" onclick="proximoPasso()">
+      Próximo →
+    </button>
+    {% else %}
+    <button class="btn btn-primary" style="flex:2" onclick="finalizarWizard()">
+      Ver Dashboard 🎉
+    </button>
+    {% endif %}
+  </div>
+
+</div><!-- /shell -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MES = "{{ mes }}";
+let dados = {
+  entradas:     {{ data.entradas | tojson }},
+  fixas:        {{ data.fixas | tojson }},
+  parcelas:     {{ data.parcelas | tojson }},
+  variaveis:    {{ data.variaveis | tojson }},
+  investimentos:{{ data.investimentos | tojson }},
+  aportes:      {{ data.aportes | tojson }},
+};
+
+// ── Salvar campo no servidor ───────────────────────────────────────────────
+async function salvar(campo) {
+  await fetch('/wizard/salvar', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({mes: MES, campo, valor: dados[campo]})
+  });
+  showToast('✅ Salvo!');
+}
+
+// ── Remover item genérico ──────────────────────────────────────────────────
+async function removerItem(campo, idx) {
+  dados[campo].splice(idx, 1);
+  await salvar(campo);
+  location.reload();
+}
+async function removerInv(idx) { dados.investimentos.splice(idx,1); await salvar('investimentos'); location.reload(); }
+async function removerAporte(idx) { dados.aportes.splice(idx,1); await salvar('aportes'); location.reload(); }
+
+// ── Passo 1: Entradas ──────────────────────────────────────────────────────
+async function adicionarEntrada() {
+  const desc  = document.getElementById('entDescricao').value.trim();
+  const tipo  = document.getElementById('entTipo').value;
+  const dia   = document.getElementById('entDia').value;
+  const valor = parseFloat(document.getElementById('entValor').value);
+  if (!desc || !valor || valor <= 0) { showToast('⚠ Preencha descrição e valor'); return; }
+  dados.entradas.push({desc, tipo, data: dia, valor});
+  await salvar('entradas');
+  location.reload();
+}
+
+// ── Passo 2: Fixas ────────────────────────────────────────────────────────
+async function adicionarFixa() {
+  const desc   = document.getElementById('fixDesc').value.trim();
+  const cat    = document.getElementById('fixCat').value;
+  const vencto = document.getElementById('fixVencto').value;
+  const valor  = parseFloat(document.getElementById('fixValor').value);
+  const debito = document.getElementById('fixDebito').value;
+  if (!desc || !valor || valor <= 0) { showToast('⚠ Preencha descrição e valor'); return; }
+  dados.fixas.push({desc, cat, vencto, valor, debito});
+  await salvar('fixas');
+  location.reload();
+}
+
+// ── Passo 3: Parcelas ─────────────────────────────────────────────────────
+async function adicionarParcela() {
+  const desc    = document.getElementById('parcDesc').value.trim();
+  const cat     = document.getElementById('parcCat').value;
+  const valor   = parseFloat(document.getElementById('parcValor').value);
+  const total   = parseInt(document.getElementById('parcTotal').value);
+  const atual   = parseInt(document.getElementById('parcAtual').value);
+  if (!desc || !valor || !total || !atual) { showToast('⚠ Preencha todos os campos'); return; }
+  const faltam = total - atual;
+  dados.parcelas.push({desc, cat, valor_parcela: valor, total_parc: total, parc_atual: atual, faltam});
+  await salvar('parcelas');
+  location.reload();
+}
+
+// ── Passo 4: Variáveis ────────────────────────────────────────────────────
+async function adicionarVariavel() {
+  const desc  = document.getElementById('varDesc').value.trim();
+  const cat   = document.getElementById('varCat').value;
+  const data  = document.getElementById('varData').value;
+  const valor = parseFloat(document.getElementById('varValor').value);
+  if (!desc || !valor || valor <= 0) { showToast('⚠ Preencha descrição e valor'); return; }
+  dados.variaveis.push({desc, cat, data, valor});
+  await salvar('variaveis');
+  location.reload();
+}
+
+// ── Passo 5: Investimentos ────────────────────────────────────────────────
+async function adicionarInv() {
+  const nome     = document.getElementById('invNome').value.trim();
+  const tipo     = document.getElementById('invTipo').value;
+  const inst     = document.getElementById('invInst').value.trim();
+  const aplicado = parseFloat(document.getElementById('invAplicado').value);
+  const atual    = parseFloat(document.getElementById('invAtual').value);
+  if (!nome || !aplicado) { showToast('⚠ Preencha nome e valor aplicado'); return; }
+  dados.investimentos.push({nome, tipo, inst, aplicado, atual: atual||aplicado});
+  await salvar('investimentos');
+  location.reload();
+}
+async function adicionarAporte() {
+  const produto  = document.getElementById('apoNome').value.trim();
+  const tipo     = document.getElementById('apoTipo').value;
+  const planejado= parseFloat(document.getElementById('apoValor').value);
+  if (!produto || !planejado) { showToast('⚠ Preencha produto e valor'); return; }
+  dados.aportes.push({produto, tipo, planejado});
+  await salvar('aportes');
+  location.reload();
+}
+
+// ── Navegação ─────────────────────────────────────────────────────────────
+function proximoPasso() {
+  const p = {{ passo }};
+  window.location.href = '/wizard/' + (p+1);
+}
+function finalizarWizard() {
+  window.location.href = '/dashboard';
+}
+</script>
+{% endblock %}
