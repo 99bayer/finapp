@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#005C2B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Financeiro">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<link rel="stylesheet" href="/static/app.css">
+<title>{% block title %}Financeiro Pessoal{% endblock %}</title>
+{% block head %}{% endblock %}
+</head>
+<body>
+
+{% block header %}{% endblock %}
+
+{% block content %}{% endblock %}
+
+{% block nav %}{% endblock %}
+
+<!-- ── PWA Install Banner ──────────────────────────────────────────────── -->
+<div class="pwa-banner" id="pwaBanner">
+  <div class="pwa-banner-title">📱 Salve na tela inicial!</div>
+  <div class="pwa-banner-sub">Acesse seu financeiro com um toque, como um app — sem baixar nada da loja.</div>
+  <div class="pwa-steps" id="pwaStepsIos" style="display:none">
+    <div class="pwa-step"><div class="pwa-step-num">1</div>
+      <div class="pwa-step-text">Toque no ícone <strong>compartilhar</strong> (quadrado com seta ↑) na barra do Safari</div></div>
+    <div class="pwa-step"><div class="pwa-step-num">2</div>
+      <div class="pwa-step-text">Role para baixo e toque em <strong>"Adicionar à Tela de Início"</strong></div></div>
+    <div class="pwa-step"><div class="pwa-step-num">3</div>
+      <div class="pwa-step-text">Toque em <strong>Adicionar</strong> — o ícone aparece na sua tela!</div></div>
+  </div>
+  <div class="pwa-steps" id="pwaStepsAndroid" style="display:none">
+    <div class="pwa-step"><div class="pwa-step-num">1</div>
+      <div class="pwa-step-text">Toque nos <strong>3 pontinhos</strong> no canto superior do Chrome</div></div>
+    <div class="pwa-step"><div class="pwa-step-num">2</div>
+      <div class="pwa-step-text">Toque em <strong>"Adicionar à tela inicial"</strong></div></div>
+    <div class="pwa-step"><div class="pwa-step-num">3</div>
+      <div class="pwa-step-text">Confirme — o ícone aparece na sua tela!</div></div>
+  </div>
+  <div class="pwa-banner-btns">
+    <button class="btn btn-primary btn-sm" id="pwaInstallBtn" style="display:none" onclick="installPWA()">
+      ⬇ Instalar
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="closePwaBanner()">Agora não</button>
+  </div>
+</div>
+
+<!-- ── Toast ────────────────────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── PWA & Service Worker ───────────────────────────────────────────────────
+let deferredPrompt = null;
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  showPwaBanner('android-chrome');
+});
+
+function detectOS() {
+  const ua = navigator.userAgent;
+  if (/iPad|iPhone|iPod/.test(ua)) return 'ios';
+  if (/Android/.test(ua)) return 'android';
+  return 'desktop';
+}
+
+function showPwaBanner(source) {
+  const shown = localStorage.getItem('pwa_banner_shown');
+  const installed = window.matchMedia('(display-mode: standalone)').matches;
+  if (installed || shown) return;
+  const os = detectOS();
+  const banner = document.getElementById('pwaBanner');
+  if (!banner) return;
+  if (os === 'ios') {
+    document.getElementById('pwaStepsIos').style.display = 'block';
+  } else {
+    document.getElementById('pwaStepsAndroid').style.display = 'block';
+    if (deferredPrompt) {
+      document.getElementById('pwaInstallBtn').style.display = 'flex';
+    }
+  }
+  if (os !== 'desktop') {
+    setTimeout(() => banner.classList.add('show'), 2000);
+  }
+}
+
+function installPWA() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(r => {
+    if (r.outcome === 'accepted') closePwaBanner();
+    deferredPrompt = null;
+  });
+}
+
+function closePwaBanner() {
+  document.getElementById('pwaBanner').classList.remove('show');
+  localStorage.setItem('pwa_banner_shown', '1');
+}
+
+// Mostrar banner na primeira visita (iOS não tem beforeinstallprompt)
+window.addEventListener('load', () => {
+  const os = detectOS();
+  const installed = window.matchMedia('(display-mode: standalone)').matches;
+  const shown = localStorage.getItem('pwa_banner_shown');
+  if (!installed && !shown && os === 'ios') showPwaBanner('ios');
+});
+
+// ── Push Notifications ─────────────────────────────────────────────────────
+async function solicitarPush() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') return;
+  // Registra no servidor (sem VAPID por ora — usa polling)
+  showToast('🔔 Notificações ativadas!');
+  localStorage.setItem('push_enabled', '1');
+  const bar = document.getElementById('notifBar');
+  if (bar) bar.style.display = 'none';
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function showToast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ── Formatação BRL ─────────────────────────────────────────────────────────
+function brl(v) {
+  return 'R$ ' + Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function pctFmt(v) { return Number(v||0).toFixed(1)+'%'; }
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>
