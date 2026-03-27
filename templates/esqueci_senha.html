@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Recuperar senha — Financeiro Pessoal{% endblock %}
+{% block content %}
+<div class="auth-shell">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-logo">🔐</div>
+      <div class="auth-title">Recuperar senha</div>
+      <div class="auth-sub">Digite seu e-mail para receber o link de redefinição</div>
+    </div>
+    <div class="auth-body">
+      <form method="POST">
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input type="email" name="email" class="form-input"
+                 placeholder="seu@email.com" required autocomplete="email">
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="margin-top:6px">
+          Enviar link →
+        </button>
+      </form>
+
+      <div class="auth-link">
+        <a href="/login">Voltar para o login</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
