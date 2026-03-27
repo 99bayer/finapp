@@ -417,3 +417,99 @@ with app.app_context():
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
+
+# ── Esqueci minha senha ─────────────────────────────────────────────────────
+import secrets
+from datetime import timedelta
+
+class TokenSenha(db.Model):
+    id         = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
+    token      = db.Column(db.String(100), unique=True, nullable=False)
+    expira_em  = db.Column(db.DateTime, nullable=False)
+    usado      = db.Column(db.Boolean, default=False)
+
+def enviar_email_reset(destinatario, nome, link):
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    GMAIL_USER = os.environ.get("GMAIL_USER", "")
+    GMAIL_PASS = os.environ.get("GMAIL_PASS", "")
+
+    if not GMAIL_USER or not GMAIL_PASS:
+        return False
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Redefinir sua senha — Financeiro Pessoal"
+    msg["From"]    = GMAIL_USER
+    msg["To"]      = destinatario
+
+    html = f"""
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+      <div style="background:#005C2B;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
+        <div style="font-size:2rem">💰</div>
+        <div style="color:#fff;font-size:1.2rem;font-weight:800;margin-top:8px">Financeiro Pessoal</div>
+      </div>
+      <p style="color:#424242;font-size:1rem">Olá, <strong>{nome}</strong>!</p>
+      <p style="color:#757575">Recebemos uma solicitação para redefinir sua senha. Clique no botão abaixo:</p>
+      <div style="text-align:center;margin:28px 0">
+        <a href="{link}" style="background:#005C2B;color:#fff;padding:14px 32px;
+           border-radius:10px;text-decoration:none;font-weight:700;font-size:1rem">
+          Redefinir minha senha
+        </a>
+      </div>
+      <p style="color:#BDBDBD;font-size:.8rem;text-align:center">
+        Este link expira em 1 hora. Se não foi você, ignore este e-mail.
+      </p>
+    </div>
+    """
+
+    msg.attach(MIMEText(html, "html"))
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(GMAIL_USER, GMAIL_PASS)
+            smtp.sendmail(GMAIL_USER, destinatario, msg.as_string())
+        return True
+    except:
+        return False
+
+@app.route("/esqueci-senha", methods=["GET","POST"])
+def esqueci_senha():
+    if request.method == "POST":
+        email = request.form.get("email","").strip().lower()
+        u = Usuario.query.filter_by(email=email).first()
+        # Sempre mostrar a mesma mensagem (segurança)
+        msg = "Se este e-mail estiver cadastrado, você receberá o link em instantes."
+        if u:
+            token = secrets.token_urlsafe(32)
+            expira = datetime.utcnow() + timedelta(hours=1)
+            db.session.add(TokenSenha(usuario_id=u.id, token=token, expira_em=expira))
+            db.session.commit()
+            link = request.host_url + "redefinir-senha/" + token
+            enviar_email_reset(u.email, u.nome, link)
+        return render_template("esqueci_senha.html", msg=msg, erro=None)
+    return render_template("esqueci_senha.html", msg=None, erro=None)
+
+@app.route("/redefinir-senha/<token>", methods=["GET","POST"])
+def redefinir_senha(token):
+    tk = TokenSenha.query.filter_by(token=token, usado=False).first()
+    if not tk or tk.expira_em < datetime.utcnow():
+        return render_template("redefinir_senha.html",
+            erro="Link inválido ou expirado. Solicite um novo.", token=None)
+    if request.method == "POST":
+        nova = request.form.get("senha","")
+        conf = request.form.get("confirmar","")
+        if len(nova) < 6:
+            return render_template("redefinir_senha.html",
+                erro="Senha deve ter pelo menos 6 caracteres.", token=token)
+        if nova != conf:
+            return render_template("redefinir_senha.html",
+                erro="As senhas não coincidem.", token=token)
+        u = db.session.get(Usuario, tk.usuario_id)
+        u.senha_hash = generate_password_hash(nova)
+        tk.usado = True
+        db.session.commit()
+        return render_template("redefinir_senha.html",
+            erro=None, token=None, sucesso=True)
+    return render_template("redefinir_senha.html", erro=None, token=token)
