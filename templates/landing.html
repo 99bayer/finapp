@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#005C2B">
+<title>Financeiro Pessoal — Controle sua vida financeira</title>
+<link rel="stylesheet" href="/static/app.css">
+<style>
+.landing{min-height:100vh;background:linear-gradient(160deg,#003520 0%,#005C2B 50%,#008C3A 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px 24px;text-align:center}
+.land-logo{font-size:4rem;margin-bottom:16px;
+  animation:float 3s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.land-title{font-size:2rem;font-weight:900;color:#fff;line-height:1.15;margin-bottom:10px}
+.land-sub{font-size:1rem;color:#A5D6A7;margin-bottom:32px;line-height:1.5;max-width:340px}
+.land-features{display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  width:100%;max-width:340px;margin-bottom:32px}
+.land-feat{background:rgba(255,255,255,.1);border-radius:12px;
+  padding:14px 12px;border:1px solid rgba(255,255,255,.15)}
+.land-feat-ico{font-size:1.4rem;margin-bottom:6px}
+.land-feat-txt{font-size:.78rem;color:#fff;font-weight:600;line-height:1.3}
+.land-btns{width:100%;max-width:340px;display:flex;flex-direction:column;gap:10px}
+.btn-land-primary{background:#fff;color:#005C2B;border:none;border-radius:14px;
+  padding:16px;font-size:1rem;font-weight:800;cursor:pointer;
+  font-family:inherit;text-decoration:none;display:block;
+  transition:transform .15s,box-shadow .15s;
+  box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.btn-land-primary:active{transform:scale(.98)}
+.btn-land-secondary{background:transparent;color:#fff;
+  border:2px solid rgba(255,255,255,.4);border-radius:14px;
+  padding:14px;font-size:.95rem;font-weight:700;cursor:pointer;
+  font-family:inherit;text-decoration:none;display:block}
+.land-trust{margin-top:28px;color:rgba(255,255,255,.5);font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="landing">
+  <div class="land-logo">💰</div>
+  <h1 class="land-title">Controle financeiro<br>no seu bolso</h1>
+  <p class="land-sub">Saiba exatamente quanto entra, quanto sai e o que fazer com o que sobra — em menos de 5 minutos por mês.</p>
+
+  <div class="land-features">
+    <div class="land-feat">
+      <div class="land-feat-ico">📊</div>
+      <div class="land-feat-txt">Dashboard visual e intuitivo</div>
+    </div>
+    <div class="land-feat">
+      <div class="land-feat-ico">🔐</div>
+      <div class="land-feat-txt">Seus dados salvos com segurança</div>
+    </div>
+    <div class="land-feat">
+      <div class="land-feat-ico">📱</div>
+      <div class="land-feat-txt">Funciona como app no celular</div>
+    </div>
+    <div class="land-feat">
+      <div class="land-feat-ico">🔔</div>
+      <div class="land-feat-txt">Lembretes diários para não esquecer</div>
+    </div>
+  </div>
+
+  <div class="land-btns">
+    <a href="/cadastro" class="btn-land-primary">Começar agora — é grátis</a>
+    <a href="/login" class="btn-land-secondary">Já tenho conta → Entrar</a>
+  </div>
+
+  <div class="land-trust">🔒 Seus dados são privados e protegidos</div>
+</div>
+</body>
+</html>
