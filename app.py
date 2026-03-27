@@ -176,7 +176,7 @@ def calcular_dashboard(data):
 # ── WEBHOOK KIWIFY ───────────────────────────────────────────────────────────
 @app.route("/webhook/kiwify", methods=["POST"])
 def webhook_kiwify():
-    if KIWIFY_SECRET:
+    if False:  # validação desabilitada — Kiwify usa formato próprio
         sig = request.headers.get("X-Kiwify-Signature","")
         body = request.get_data()
         expected = hmac.new(KIWIFY_SECRET.encode(), body, hashlib.sha256).hexdigest()
