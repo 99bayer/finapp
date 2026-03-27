@@ -1,1 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Esqueci minha senha — Financeiro Pessoal{% endblock %}
+{% block content %}
+<div class="auth-shell">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-logo">🔑</div>
+      <div class="auth-title">Esqueci minha senha</div>
+      <div class="auth-sub">Digite seu e-mail e enviaremos um link para redefinir</div>
+    </div>
+    <div class="auth-body">
+      {% if msg %}
+        <div style="background:var(--g050);border:1px solid var(--g100);border-left:4px solid var(--g500);
+             padding:14px;border-radius:8px;font-size:.88rem;color:var(--g800);margin-bottom:16px">
+          ✅ {{ msg }}
+        </div>
+        <a href="/login" class="btn btn-primary">Voltar ao login</a>
+      {% else %}
+        {% if erro %}
+        <div class="auth-error">⚠ {{ erro }}</div>
+        {% endif %}
+        <form method="POST">
+          <div class="form-group">
+            <label class="form-label">Seu e-mail</label>
+            <input type="email" name="email" class="form-input"
+                   placeholder="email@exemplo.com" required autocomplete="email">
+          </div>
+          <button type="submit" class="btn btn-primary">
+            Enviar link de redefinição
+          </button>
+        </form>
+        <div class="auth-link">
+          Lembrou a senha? <a href="/login">Voltar ao login</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
 
