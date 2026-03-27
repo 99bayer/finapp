@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — {{ nome_mes }}{% endblock %}
+
+{% block header %}
+<header class="app-header">
+  <div class="header-inner">
+    <div class="header-logo">
+      <div class="header-icon">💰</div>
+      <div>
+        <div class="header-name">Olá, {{ u.nome.split()[0] }}!</div>
+        <div class="header-sub">{{ nome_mes }}</div>
+      </div>
+    </div>
+    <a href="/logout" class="header-btn">Sair</a>
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="shell">
+
+  <!-- Seletor de mês -->
+  <div class="mes-selector">
+    <form method="POST" action="/trocar-mes" style="flex:1;display:flex;align-items:center;gap:8px">
+      <select name="mes" class="mes-select" onchange="this.form.submit()">
+        {% for m in meses_lista %}
+        <option value="{{ m.mes }}" {% if m.mes == mes %}selected{% endif %}>{{ m.nome }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <form method="POST" action="/novo-mes" style="display:flex;gap:6px">
+      <input type="month" name="mes" class="form-input"
+             style="width:140px;padding:7px 10px;font-size:.82rem"
+             value="{{ mes }}" min="2024-01">
+      <button type="submit" class="mes-btn">+ Novo mês</button>
+    </form>
+  </div>
+
+  <!-- Banner notificações -->
+  <div class="notif-bar" id="notifBar" style="display:none">
+    <span style="font-size:1.1rem">🔔</span>
+    <div class="notif-bar-text">
+      <strong>Ative as notificações</strong> para lembrar de registrar seus gastos diariamente
+    </div>
+    <button class="notif-bar-btn" onclick="solicitarPush()">Ativar</button>
+  </div>
+
+  <!-- ── KPIs Fluxo ── -->
+  <div class="sl">Fluxo do Mês</div>
+  <div class="kpi-grid">
+    <div class="kpi g">
+      <span class="kpi-ico">💵</span>
+      <div class="kpi-lbl">Receita</div>
+      <div class="kpi-val" id="kReceit">{{ "R$ {:,.0f}".format(kpis.total_rec).replace(",",".") }}</div>
+      <div class="kpi-sub">{{ data.entradas|length }} fonte(s)</div>
+    </div>
+    <div class="kpi r">
+      <span class="kpi-ico">🏠</span>
+      <div class="kpi-lbl">Saídas Fixas</div>
+      <div class="kpi-val">{{ "R$ {:,.0f}".format(kpis.total_fix).replace(",",".") }}</div>
+      <div class="kpi-sub">{{ data.fixas|length }} despesa(s)</div>
+    </div>
+    <div class="kpi r">
+      <span class="kpi-ico">💳</span>
+      <div class="kpi-lbl">Parcelas</div>
+      <div class="kpi-val">{{ "R$ {:,.0f}".format(kpis.total_parc).replace(",",".") }}</div>
+      <div class="kpi-sub">{{ data.parcelas|length }} ativa(s)</div>
+    </div>
+    <div class="kpi">
+      <span class="kpi-ico">🛒</span>
+      <div class="kpi-lbl">Variáveis</div>
+      <div class="kpi-val">{{ "R$ {:,.0f}".format(kpis.total_var).replace(",",".") }}</div>
+      <div class="kpi-sub">{{ data.variaveis|length }} lançamento(s)</div>
+    </div>
+  </div>
+  <!-- Sobra destaque -->
+  <div class="kpi {% if kpis.sobra >= 0 %}g{% else %}r{% endif %}" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="kpi-lbl">✅ Sobra do mês</div>
+        <div style="font-size:1.8rem;font-weight:900;color:{% if kpis.sobra >= 0 %}var(--g700){% else %}var(--red){% endif %}">
+          R$ {{ "{:,.2f}".format(kpis.sobra).replace(",","X").replace(".",",").replace("X",".") }}
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:1.4rem;font-weight:800;color:{% if kpis.pct_sobra >= 10 %}var(--g500){% else %}var(--red){% endif %}">
+          {{ "%.1f"|format(kpis.pct_sobra) }}%
+        </div>
+        <div class="kpi-sub">da receita</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Gráfico distribuição ── -->
+  <div class="card">
+    <div class="card-title"><div class="ico">🥧</div> Para onde vai o dinheiro?</div>
+    <div class="chart-wrap"><canvas id="cDonut"></canvas></div>
+  </div>
+
+  <!-- ── KPIs Patrimônio ── -->
+  <div class="sl">Patrimônio & Investimentos</div>
+  <div class="kpi-grid">
+    <div class="kpi y">
+      <span class="kpi-ico">💼</span>
+      <div class="kpi-lbl">Patrimônio</div>
+      <div class="kpi-val" style="font-size:1rem">R$ {{ "{:,.0f}".format(kpis.total_pat).replace(",",".") }}</div>
+      <div class="kpi-sub">Valor atual</div>
+    </div>
+    <div class="kpi y">
+      <span class="kpi-ico">💹</span>
+      <div class="kpi-lbl">Rendimento</div>
+      <div class="kpi-val" style="font-size:1rem">+R$ {{ "{:,.0f}".format(kpis.total_rend).replace(",",".") }}</div>
+      <div class="kpi-sub">Total acumulado</div>
+    </div>
+    <div class="kpi r">
+      <span class="kpi-ico">🏦</span>
+      <div class="kpi-lbl">Saldo Devedor</div>
+      <div class="kpi-val" style="font-size:1rem">R$ {{ "{:,.0f}".format(kpis.total_saldo_dev).replace(",",".") }}</div>
+      <div class="kpi-sub">Total a pagar</div>
+    </div>
+    <div class="kpi">
+      <span class="kpi-ico">🎯</span>
+      <div class="kpi-lbl">Aporte</div>
+      <div class="kpi-val" style="font-size:1rem">R$ {{ "{:,.0f}".format(kpis.total_apo).replace(",",".") }}</div>
+      <div class="kpi-sub">Planejado</div>
+    </div>
+  </div>
+
+  <!-- ── Gráfico meta vs realizado ── -->
+  <div class="card">
+    <div class="card-title"><div class="ico">📊</div> Meta vs. Realizado</div>
+    <div class="chart-wrap"><canvas id="cBarras"></canvas></div>
+  </div>
+
+  <!-- ── Alertas ── -->
+  <div class="sl">Saúde Financeira</div>
+  {% for a in kpis.alertas %}
+  <div class="alerta {% if a.ok %}ok{% else %}warn{% endif %}">
+    <div class="alerta-dot"></div>
+    <div class="alerta-info">
+      <div class="alerta-label">{{ a.icon }} {{ a.label }}</div>
+      <div class="alerta-diag">{% if a.ok %}{{ a.diag_ok }}{% else %}{{ a.diag_warn }}{% endif %}</div>
+    </div>
+    <div class="alerta-val">{{ "%.1f"|format(a.atual) }}{{ a.unidade }}</div>
+  </div>
+  {% endfor %}
+  <div class="alerta {% if kpis.alertas_warn == 0 %}ok{% elif kpis.alertas_warn <= 2 %}ok{% else %}warn{% endif %}"
+       style="margin-top:4px;background:var(--g800)">
+    <span style="font-size:1.1rem">
+      {% if kpis.alertas_warn == 0 %}🟢{% elif kpis.alertas_warn <= 2 %}🟡{% else %}🔴{% endif %}
+    </span>
+    <div class="alerta-info">
+      <div class="alerta-label" style="color:#fff">
+        {% if kpis.alertas_warn == 0 %}Situação saudável — todos os indicadores OK
+        {% elif kpis.alertas_warn <= 2 %}{{ kpis.alertas_warn }} indicador(es) precisam atenção
+        {% else %}{{ kpis.alertas_warn }} indicadores preocupantes — revise agora{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Parcelamentos ── -->
+  {% if data.parcelas %}
+  <div class="sl">Parcelamentos Ativos</div>
+  <div class="card" style="padding:0;overflow:hidden">
+    {% for p in data.parcelas %}
+    <div class="item-card" style="border-radius:0;border:none;border-bottom:1px solid var(--gr100)">
+      <div class="item-info">
+        <div class="item-name">{{ p.desc }}</div>
+        <div class="item-sub">{{ p.cat }} · {{ p.parc_atual }}/{{ p.total_parc }} · faltam {{ p.faltam }}</div>
+        <div class="parc-prog">
+          <div class="parc-prog-fill {% if p.parc_atual|float / p.total_parc|float < 0.5 %}low{% endif %}"
+               style="width:{{ (p.parc_atual|float / p.total_parc|float * 100)|round }}%"></div>
+        </div>
+      </div>
+      <div class="item-val" style="color:var(--red)">{{ "R$ {:,.2f}".format(p.valor_parcela|float).replace(",","X").replace(".",",").replace("X",".") }}/mês</div>
+    </div>
+    {% endfor %}
+    <div style="padding:12px 14px;background:var(--g050);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:.78rem;color:var(--g800);font-weight:600">Ganho ao quitar tudo:</span>
+      <span style="font-size:.92rem;font-weight:800;color:var(--g700)">+R$ {{ "{:,.2f}".format(kpis.ganho_quit).replace(",","X").replace(".",",").replace("X",".") }}/mês</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Investimentos ── -->
+  {% if data.investimentos %}
+  <div class="sl">Carteira de Investimentos</div>
+  <div class="card" style="padding:0;overflow:hidden">
+    {% set total_pat = kpis.total_pat %}
+    {% for i in data.investimentos %}
+    <div class="inv-item">
+      <div class="inv-nome">{{ i.nome }}</div>
+      <div class="inv-inst">{{ i.tipo }} · {{ i.inst }}</div>
+      <div class="inv-vals">
+        <div class="inv-val-item">Aplicado: <b>R$ {{ "{:,.0f}".format(i.aplicado|float).replace(",",".") }}</b></div>
+        <div class="inv-val-item">Hoje: <b>R$ {{ "{:,.0f}".format(i.atual|float).replace(",",".") }}</b></div>
+        {% if i.atual|float > i.aplicado|float %}
+        <div class="inv-rend">+R$ {{ "{:,.2f}".format(i.atual|float - i.aplicado|float).replace(",","X").replace(".",",").replace("X",".") }}</div>
+        {% endif %}
+      </div>
+      {% if total_pat > 0 %}
+      <div class="inv-pct-bar">
+        <div class="inv-pct-fill" style="width:{{ (i.atual|float / total_pat * 100)|round }}%"></div>
+      </div>
+      <div style="font-size:.68rem;color:var(--gr600);margin-top:2px">{{ "%.1f"|format(i.atual|float / total_pat * 100) }}% da carteira</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ── Estudo de Sobra ── -->
+  <div class="sl">Estudo de Sobra</div>
+  <div class="card">
+    <p style="font-size:.82rem;margin-bottom:14px">
+      Distribua os <strong style="color:var(--g700)">R$ {{ "{:,.2f}".format(kpis.sobra_pos).replace(",","X").replace(".",",").replace("X",".") }}</strong> de sobra:
+    </p>
+    <div class="sobra-grid">
+      <div class="sobra-card a">
+        <div class="sobra-pct">30%</div>
+        <div class="sobra-val" style="color:var(--g700)">R$ {{ "{:,.0f}".format(kpis.sobra_reserva).replace(",",".") }}</div>
+        <div class="sobra-lbl">🔒 Reserva</div>
+      </div>
+      <div class="sobra-card b">
+        <div class="sobra-pct" style="color:#1565C0">50%</div>
+        <div class="sobra-val" style="color:#1565C0">R$ {{ "{:,.0f}".format(kpis.sobra_investir).replace(",",".") }}</div>
+        <div class="sobra-lbl">📈 Investir</div>
+      </div>
+      <div class="sobra-card c">
+        <div class="sobra-pct">20%</div>
+        <div class="sobra-val" style="color:#7B5800">R$ {{ "{:,.0f}".format(kpis.sobra_lazer).replace(",",".") }}</div>
+        <div class="sobra-lbl">🎯 Lazer</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--g050);border-left:3px solid var(--g500)">
+      <div style="font-size:.76rem;font-weight:700;color:var(--g800)">💡 Ao quitar todas as parcelas</div>
+      <div style="font-size:.74rem;color:var(--gr600);margin-top:2px">
+        Sua sobra vai para R$ {{ "{:,.0f}".format(kpis.sobra_pos_quit).replace(",",".") }}/mês — ganho de +R$ {{ "{:,.0f}".format(kpis.ganho_quit).replace(",",".") }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Botão editar dados -->
+  <a href="/wizard/1" class="btn btn-outline" style="margin-bottom:8px">
+    ✏ Editar dados do mês
+  </a>
+
+</div><!-- /shell -->
+{% endblock %}
+
+{% block nav %}
+<nav class="bottom-nav">
+  <a class="nav-item active" href="/dashboard">
+    <span class="nav-icon">📊</span>
+    <span class="nav-label">Dashboard</span>
+  </a>
+  <a class="nav-item" href="/wizard/1">
+    <span class="nav-icon">✏️</span>
+    <span class="nav-label">Lançar</span>
+  </a>
+  <a class="nav-item" href="/wizard/5">
+    <span class="nav-icon">📈</span>
+    <span class="nav-label">Investir</span>
+  </a>
+</nav>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const G800='#005C2B',G700='#006E33',G500='#009B3A',RED='#C0392B',RED2='#E57373',GR200='#EEE';
+Chart.defaults.font={family:"-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif",size:11};
+Chart.defaults.color='#757575';
+
+// Donut
+new Chart(document.getElementById('cDonut'),{
+  type:'doughnut',
+  data:{
+    labels:['Saídas Fixas','Parcelamentos','Variáveis','Sobra'],
+    datasets:[{
+      data:[{{ kpis.total_fix }},{{ kpis.total_parc }},{{ kpis.total_var }},{{ [kpis.sobra,0]|max }}],
+      backgroundColor:[RED,RED2,'#FFCDD2',G500],
+      borderWidth:3,borderColor:'#fff',hoverOffset:8
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,cutout:'68%',
+    plugins:{
+      legend:{position:'bottom',labels:{padding:12,usePointStyle:true,pointStyleWidth:9,font:{size:11}}},
+      tooltip:{callbacks:{label:c=>`  R$ ${Number(c.parsed).toLocaleString('pt-BR',{minimumFractionDigits:2})}`}}
+    }
+  },
+  plugins:[{id:'center',afterDraw(ch){
+    const{ctx,chartArea:{left,right,top,bottom}}=ch;
+    const cx=(left+right)/2,cy=(top+bottom)/2;
+    ctx.save();
+    ctx.font='bold 16px system-ui';ctx.fillStyle=G800;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('R$ {{ "{:,.0f}".format(kpis.total_rec).replace(",",".") }}',cx,cy-8);
+    ctx.font='10px system-ui';ctx.fillStyle='#757575';
+    ctx.fillText('Receita Total',cx,cy+10);
+    ctx.restore();
+  }}]
+});
+
+// Barras
+new Chart(document.getElementById('cBarras'),{
+  type:'bar',
+  data:{
+    labels:['Necessidades','Lazer','Investim.','Outros'],
+    datasets:[
+      {label:'Meta',data:[{{ kpis.total_rec*kpis.meta_nec|round(2) }},{{ kpis.total_rec*kpis.meta_laz|round(2) }},{{ kpis.total_rec*kpis.meta_inv|round(2) }},{{ kpis.total_rec*kpis.meta_out|round(2) }}],
+       backgroundColor:G800+'CC',borderRadius:5,borderSkipped:false},
+      {label:'Realizado',data:[{{ kpis.total_fix+kpis.total_parc }},{{ kpis.total_var }},{{ kpis.total_apo }},0],
+       backgroundColor:RED+'CC',borderRadius:5,borderSkipped:false}
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'bottom',labels:{usePointStyle:true,padding:12}}},
+    scales:{
+      x:{grid:{display:false}},
+      y:{grid:{color:GR200},ticks:{callback:v=>'R$'+(v/1000).toFixed(1)+'k'}}
+    }
+  }
+});
+
+// Notificações
+window.addEventListener('load', () => {
+  const bar = document.getElementById('notifBar');
+  const enabled = localStorage.getItem('push_enabled');
+  if (bar && !enabled && 'Notification' in window && Notification.permission === 'default') {
+    bar.style.display = 'flex';
+  }
+});
+</script>
+{% endblock %}
