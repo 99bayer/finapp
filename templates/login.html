@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Login — Financeiro Pessoal{% endblock %}
+{% block content %}
+<div class="auth-shell">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-logo">💰</div>
+      <div class="auth-title">Financeiro Pessoal</div>
+      <div class="auth-sub">Controle sua vida financeira com simplicidade</div>
+    </div>
+    <div class="auth-body">
+      {% if erro %}
+      <div class="auth-error">⚠ {{ erro }}</div>
+      {% endif %}
+      <form method="POST">
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input type="email" name="email" class="form-input"
+                 placeholder="seu@email.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha</label>
+          <input type="password" name="senha" class="form-input"
+                 placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:6px">
+          Entrar →
+        </button>
+      </form>
+      <div class="auth-link">
+        Não tem conta? <a href="/cadastro">Criar conta gratuita</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
