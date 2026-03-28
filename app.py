@@ -370,9 +370,57 @@ def novo_mes():
     u = usuario_logado()
     if not u: return redirect(url_for("login"))
     mes = request.form.get("mes")
-    if mes:
-        session["mes_ativo"] = mes
-        get_or_create_mes(u.id, mes)
+    if not mes:
+        return redirect(url_for("dashboard"))
+
+    session["mes_ativo"] = mes
+
+    # Verificar se já existe dados para este mês
+    existente = MesFinanceiro.query.filter_by(usuario_id=u.id, mes=mes).first()
+    if existente:
+        return redirect(url_for("wizard", passo=1))
+
+    # Buscar mês anterior mais recente com dados
+    historico = MesFinanceiro.query.filter_by(usuario_id=u.id)                .order_by(MesFinanceiro.mes.desc()).first()
+
+    novo = MesFinanceiro(usuario_id=u.id, mes=mes)
+
+    if historico:
+        # ── 1. Copiar entradas (salário, vale) ────────────────────────────
+        novo.entradas_json = historico.entradas_json
+
+        # ── 2. Copiar saídas fixas integralmente ──────────────────────────
+        novo.fixas_json = historico.fixas_json
+
+        # ── 3. Avançar parcelamentos (reduz 1 parcela, remove quitados) ───
+        parcelas_ant = json.loads(historico.parcelas_json or "[]")
+        parcelas_novas = []
+        for p in parcelas_ant:
+            faltam = int(p.get("faltam", 0))
+            if faltam > 1:
+                p_novo = dict(p)
+                p_novo["parc_atual"] = int(p.get("parc_atual", 0)) + 1
+                p_novo["faltam"]     = faltam - 1
+                parcelas_novas.append(p_novo)
+            # se faltam == 1 significa que esta era a última — remove (quitado)
+        novo.parcelas_json = json.dumps(parcelas_novas, ensure_ascii=False)
+
+        # ── 4. Copiar investimentos (carteira atual) ───────────────────────
+        novo.investimentos_json = historico.investimentos_json
+
+        # ── 5. Copiar metas de configuração ───────────────────────────────
+        novo.meta_nec   = historico.meta_nec
+        novo.meta_laz   = historico.meta_laz
+        novo.meta_inv   = historico.meta_inv
+        novo.meta_out   = historico.meta_out
+        novo.meta_emerg = historico.meta_emerg
+
+        # Gastos variáveis e aportes começam zerados (novo mês)
+        novo.variaveis_json = "[]"
+        novo.aportes_json   = "[]"
+
+    db.session.add(novo)
+    db.session.commit()
     return redirect(url_for("wizard", passo=1))
 
 @app.route("/api/dashboard-data")
