@@ -10,15 +10,19 @@ app.secret_key = os.environ.get("SECRET_KEY", "chave-secreta-troque-em-producao"
 # ── Banco de dados ─────────────────────────────────────────────────────────
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///finapp.db")
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = True
 
-# Supabase requer SSL
-if "supabase" in DATABASE_URL:
+# Supabase requer SSL — pg8000 aceita ssl_context=True
+if "supabase" in DATABASE_URL or "pooler.supabase" in DATABASE_URL:
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "connect_args": {"sslmode": "require"}
+        "connect_args": {"ssl_context": True}
     }
 db = SQLAlchemy(app)
 
@@ -354,7 +358,12 @@ def manifest():
 
 # ── Init ────────────────────────────────────────────────────────────────────
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+        print("Banco inicializado OK")
+    except Exception as e:
+        print(f"ERRO ao inicializar banco: {e}")
+        print("App continuando — verifique DATABASE_URL")
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
